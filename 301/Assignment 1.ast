@@ -1,0 +1,32 @@
+-- Harry Grenier
+
+load system io.
+load system math.
+
+structure Circle with
+  data center.
+  data radius.
+  function circumference with () do
+    return 2.0 * math@pi * this@radius.
+  end
+  function area with () do
+    return ((0.5)*(2.0* math @pi * this@radius)*(this@radius)).
+  end
+  function printcircle with () do
+    io @println ("Circle: ("+ tostring(this@center@0)+ "," + tostring(this@center@1) + ") Radius: " + tostring(this@radius)).
+  end
+end
+
+-- instantiate circle c1
+let c1 = Circle((3.5,2.0),5.0).
+c1 @printcircle ().
+io @println ("Circumference: "+ tostring(c1 @circumference ())).
+io @println ("Area: "+ tostring(c1@area())).
+io @println ("\n")
+
+-- instantiate circle c2
+
+let c2 = Circle((1.0,1.0),1.0).
+c2 @printcircle ().
+io @println ("Circumference: "+ tostring(c2 @circumference ())).
+io @println ("Area: "+ tostring(c2@area())).
