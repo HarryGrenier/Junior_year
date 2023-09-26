@@ -9,7 +9,7 @@ int main(int argc, char *argv[]) {
     int n = atoi(argv[3]);
 
     // Check for positive integers
-    if (F1 <= 0 || F2 <= 0 || n <= 0) {
+    if (F1 <= 0 || F2 <= 0 || n <= 0 || argc != 4) {
         printf("usage: ./fibo F1 F2 n, with F2>F1>0 and n>0 all integers.\n");
         return 1;
     }else if(F1 > F2){

@@ -22,10 +22,13 @@ int main(int argc, char *argv[]) {
         if (F1 <= 0 || F2 <= 0 || n <= 0 || ((argc - 1) % 3 != 0)) {
         printf("usage: ./fibo [F1 F2 n]+, with F2>F1>0 and n>0 all integers");
             return 1;
+        }else if(F1 > F2){
+        printf("error: The second argument must be strictly larger than the first\n");
+        return 1;
         }
 
         // Print header
-        printf("%d terms of the Fibonacci sequence with F1=%d and F2=%d:\n", n, F1, F2);
+        printf("%d terms of the Fibonacci sequence with F1=%d and F2=%d:\n\t", n, F1, F2);
         // Compute and print Fibonacci sequence
         for (int j = 1; j <= n; j++) {
             printf("F%d=%d", j, F1);
@@ -49,7 +52,7 @@ int main(int argc, char *argv[]) {
     }
 
     // outputs the unique values array
-    printf("\nThe values encountered in the sequences are\n{");
+    printf("\nThe values encountered in the sequences are\n\t{");
     for (int i = 0; i < uniqueCount; i++) {
         printf("%d", uniqueValues[i]);
         if (i != uniqueCount - 1) {
