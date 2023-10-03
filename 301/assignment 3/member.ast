@@ -1,0 +1,12 @@
+function member
+    with (l,m) if (l@length() == 0) do
+        return false.
+    with (l,m) if ((hd(l)) == m) do
+        return true.
+    with (l,m) if not ((hd(l)) == m) do
+        member(tl(l),m)
+end
+
+let l = [1,2,3].
+assert(member(l,2) == true).
+assert(member(l,5) == false).

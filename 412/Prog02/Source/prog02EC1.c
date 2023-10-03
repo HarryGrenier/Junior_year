@@ -3,6 +3,8 @@
 
 // Checks for element in an array
 int isInArray(int val, int arr[], int size);
+// Determines the order of two elements
+int compare(const void *a, const void *b);
 
 int main(int argc, char *argv[]) {
     // Creates an array to store unique values
@@ -20,15 +22,16 @@ int main(int argc, char *argv[]) {
 
         // Checks to make sure arguments are correct
         if (F1 <= 0 || F2 <= 0 || n <= 0 || ((argc - 1) % 3 != 0)) {
-        printf("usage: ./fibo [F1 F2 n]+, with F2>F1>0 and n>0 all integers");
+            printf("usage: ./fibo [F1 F2 n]+, with F2>F1>0 and n>0 all integers");
             return 1;
-        }else if(F1 > F2){
-        printf("error: The second argument must be strictly larger than the first\n");
-        return 1;
+        } else if(F1 > F2){
+            printf("error: The second argument must be strictly larger than the first\n");
+            return 1;
         }
 
         // Print header
         printf("%d terms of the Fibonacci sequence with F1=%d and F2=%d:\n\t", n, F1, F2);
+        
         // Compute and print Fibonacci sequence
         for (int j = 1; j <= n; j++) {
             printf("F%d=%d", j, F1);
@@ -61,6 +64,16 @@ int main(int argc, char *argv[]) {
     }
     printf("}\n");
 
+    // Sort the array
+    qsort(uniqueValues, uniqueCount, sizeof(int), compare);
+    printf("{");
+    for (int i = 0; i < uniqueCount; i++) {
+        printf("%d", uniqueValues[i]);
+        if (i != uniqueCount - 1) {
+            printf(", ");
+        }
+    }
+    printf("}\n");
     return 0;
 }
 
@@ -70,4 +83,8 @@ int isInArray(int val, int arr[], int size) {
         if (arr[i] == val) return 1;
     }
     return 0;
+}
+// Determines the order of two elements
+int compare(const void *a, const void *b) {
+    return (*(int *)a - *(int *)b);
 }

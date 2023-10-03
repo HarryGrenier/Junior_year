@@ -1,0 +1,15 @@
+let output = [].
+function square
+	with [] do
+		0
+	with l do
+		global output.
+		output @append(hd(l)*hd(l)).
+		square(tl(l))
+	return output.
+end
+
+
+let l = [1,2,3].
+let new_list = square(l).
+assert(new_list == [1,4,9]).

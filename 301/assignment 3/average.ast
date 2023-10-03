@@ -1,0 +1,19 @@
+let size = 0.
+let sum = 0.
+
+function average
+    with l if (size == 0) do 
+        global size.
+        global sum.
+        let size = l@length().
+        average(l)        
+	with l if (l@length() == 0) do
+        return sum/size.
+	with l do
+        let sum = sum + hd(l).
+		average((tl(l)))
+end
+
+
+let l = [1,2,3].
+assert(average(l) == 2).
