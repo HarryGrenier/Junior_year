@@ -1,0 +1,13 @@
+function inc_list_rec
+    with [] do [].
+    with [e] do [e+1].
+    with [h|t] do [h+1] + (inc_list_rec t)
+end
+
+assert([2,3,4]==inc_list_rec([1,2,3]))
+
+function inc_list_map
+    with list_of_any_length do list_of_any_length@map(lambda with x do x+1).
+end
+
+assert([2,3,4]==inc_list_map([1,2,3]))
