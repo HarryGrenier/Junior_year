@@ -7,13 +7,16 @@ void execute_command(const char* command, const char* output_dir, int* idx) {
     char filename[512];
     char system_cmd[1024];
 
+    for (int i = 0; filename[i]; i++) {
+        if (filename[i] == ' ')
+            filename[i] = '\0';
+            break;
+    }
+
     snprintf(filename, sizeof(filename), "%s/%s%d.txt", output_dir, command, (*idx)++);
     
     // Remove potential unsafe characters from filename (simple sanitization)
-    for (int i = 0; filename[i]; i++) {
-        if (filename[i] == ' ' || filename[i] == '|' || filename[i] == '&')
-            filename[i] = '_';
-    }
+    
 
     // Constructing the system command with redirection
     snprintf(system_cmd, sizeof(system_cmd), "%s > %s", command, filename);
