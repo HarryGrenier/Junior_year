@@ -2,27 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-// A function to execute the bash command and redirect its output to a file
-void execute_command(const char* command, const char* output_dir, int* idx) {
-    char filename[512];
-    char system_cmd[1024];
+/// A function to extract only the command name (before any spaces)
+void extract_command_name(const char* command, char* name, size_t len);
 
-    for (int i = 0; filename[i]; i++) {
-        if (filename[i] == ' ')
-            filename[i] = '\0';
-            break;
-    }
+void execute_command(const char* command, const char* output_dir, int* idx);
 
-    snprintf(filename, sizeof(filename), "%s/%s%d.txt", output_dir, command, (*idx)++);
-    
-    // Remove potential unsafe characters from filename (simple sanitization)
-    
-
-    // Constructing the system command with redirection
-    snprintf(system_cmd, sizeof(system_cmd), "%s > %s", command, filename);
-
-    system(system_cmd);
-}
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
@@ -31,7 +15,7 @@ int main(int argc, char* argv[]) {
     }
 
     const char* output_dir = argv[1];
-    int unique_idx = 1;  // Start our unique index from 1
+    int unique_idx = 1;
 
     for (int i = 2; i < argc; i++) {
         FILE* fp = fopen(argv[i], "r");
@@ -54,4 +38,30 @@ int main(int argc, char* argv[]) {
     }
 
     return 0;
+}
+
+void execute_command(const char* command, const char* output_dir, int* idx) {
+    char command_name[256];
+    char filename[512];
+    char system_cmd[1024];
+
+    // Extract only the command name
+    extract_command_name(command, command_name, sizeof(command_name));
+
+    // Construct the filename
+    snprintf(filename, sizeof(filename), "%s/%s_%d.txt", output_dir, command_name, (*idx)++);
+
+    // Constructing the system command with redirection
+    snprintf(system_cmd, sizeof(system_cmd), "%s > %s", command, filename);
+
+    system(system_cmd);
+}
+
+
+void extract_command_name(const char* command, char* name, size_t len) {
+    size_t i;
+    for (i = 0; i < len && command[i] && command[i] != ' '; i++) {
+        name[i] = command[i];
+    }
+    name[i] = '\0'; // Null-terminate the command name
 }
