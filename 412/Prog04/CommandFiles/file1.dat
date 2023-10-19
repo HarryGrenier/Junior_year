@@ -1,0 +1,5 @@
+ls -la
+rm ../*.txt
+ps -a
+gcc -Wall prog.c -o prog
+du -H -l 2 ..
