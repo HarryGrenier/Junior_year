@@ -4,9 +4,9 @@
 set -e
 
 # Compile the executables
-gcc ./Version1/prog04_v1.c -o version1
-gcc ./Version2/prog04_v2.c -o version2
-gcc ./Version3/prog04_v3.c -o version3
+gcc ./Programs/Version1/prog04_v1.c -o version1
+gcc ./Programs/Version2/prog04_v2.c -o version2
+gcc ./Programs/Version3/prog04_v3.c -o version3
 
 # Get the command line arguments
 WATCH_FOLDER="$1"
