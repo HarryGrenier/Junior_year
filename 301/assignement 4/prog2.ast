@@ -1,0 +1,6 @@
+function member with (l:%list, m) do
+    return l @reduce (lambda with (found:%boolean, element) do found or (element == m), false).
+end
+
+assert(member([1,2,3], 2)).
+assert(not member([1,2,3], 5)).

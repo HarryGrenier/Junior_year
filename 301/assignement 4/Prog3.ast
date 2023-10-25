@@ -1,0 +1,7 @@
+function average with l:%list do
+    return (l @reduce (lambda with (Sum, element) do tointeger(Sum) + tointeger(element), 0))/len(l).
+end
+
+assert((average [1,2,3]) == 2).
+assert((average [1,2,4]) == 2).
+assert((average [1.0,2.0,4.0]) == 2.33333333333333333333).

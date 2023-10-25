@@ -1,0 +1,5 @@
+function square with input:%list do input@map(lambda with n do n*n) end
+
+assert((square [-2,0,1,2,3]) == [4,0,1,4,9]).
+assert((square [2,2.5]) == [4, 6.25]).
+assert((square []) == []).
