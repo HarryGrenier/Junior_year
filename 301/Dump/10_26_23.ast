@@ -1,0 +1,21 @@
+-- rewrite recude in the curried style.
+-- first peram is a function 
+-- this returns a new function that need the initalizer
+-- that returns a function that takes the list and provides an answer
+
+load system io
+
+function reduce
+    with f:%function do 
+        lambda 
+            with [h|t] do t@reduce(f,h).
+            with initalizer do
+            lambda with some_list:%list do
+                some_list@reduce(f, initalizer)
+end
+
+assert (10 == reduce (lambda with (i,e) do i + e)0 [1,2,3,4]).
+assert (24 == reduce (lambda with (i,e) do i * e)1 [1,2,3,4]).
+
+let sum = assert (10 == reduce (lambda with (i,e) do i + e)0 [1,2,3,4]).
+assert (10 == sum [1,2,3,4]).
