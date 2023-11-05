@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 
+// Read in the map to a 2D vector
 bool readMap(const std::string& filePath, std::vector<std::vector<float>>& map, int& rows, int& cols);
 
 // Finds the neighboring points to a point
@@ -16,39 +17,67 @@ std::vector<std::pair<int, int>> getNeighbors(int row, int col, int rows, int co
 std::vector<std::pair<int, int>> steepestDescent(const std::vector<std::vector<float>>& map, int startRow, int startCol);
 
 // Write the results of the program
-void show_results(std::string outputFolderPath, bool traceMode,int startRow, int startCol,std::vector<std::pair<int, int>> path,std::string fileName);
+void show_results(std::string outputFolderPath, bool traceMode,int startRow, int startCol,std::vector<std::pair<int, int>> path,std::string fileName, int i);
 
 // Get the map file name
 std::string extractMapName(const std::string& mapFilePath);
 
 // Display the errors to the program output
-void show_results(std::string outputFolderPath,std::string fileName, std::string Output_String);
+void show_error(std::string outputFolderPath,std::string fileName, std::string Output_String);
 
 int main(int argc, char *argv[]) {
     // Store the variables inputed into the program
     bool traceMode = false; // Stores true or false for if trace mode is needed
     std::string mapFilePath; // Like to the map path
-    int startRow, startCol; // Stores the current pos to start
+    std::vector<std::pair<int,int>> List_of_Points;
     std::string outputFolderPath; // Stores the path to the output folder 
 
-    // Parse arguments to get all starting points and output folder path
-    std::vector<std::pair<int, int>> startPoints;
-    int argIndex = traceMode ? 6 : 5; // Adjust starting index based on trace flag
-    while (argIndex < argc - 1) {
-        int row = atoi(argv[argIndex++]) - 1; // Convert to 0-based index
-        int col = atoi(argv[argIndex++]) - 1; // Convert to 0-based index
-        startPoints.emplace_back(row, col);
-    }
-    outputFolderPath = argv[argc - 1];
+    int number_of_starting_points = argc - 3;
 
-    // Read the map once in the parent process
-    if (!readMap(mapFilePath, map, rows, cols)) {
-        show_error(outputFolderPath, fileName, "Map file not found");
-        return 1;
+    // Stores the info when trace is true
+    
+    if (std::string(argv[1]) == "-t") {
+        number_of_starting_points--;
+        traceMode = true;
+        mapFilePath = argv[2];
+        for (int i = 3; i <= number_of_starting_points; i+=2){
+            List_of_Points.push_back({atoi(argv[i])-1, atoi(argv[i+1])-1});
+        }
+        outputFolderPath = argv[argc-1];
     }
+    // Stores the info when the trace is false
+    else{
+    traceMode = true;
+        mapFilePath = argv[1];
+        for (int i = 2; i <= number_of_starting_points; i+=2){
+            List_of_Points.push_back({atoi(argv[i])-1, atoi(argv[i+1])-1});
+        }
+        outputFolderPath = argv[argc-1];
+    }
+
+    std::cout<<"\nNUmber of starting points " << number_of_starting_points << "\nMap path " << mapFilePath << "\nTraceMOde " << traceMode << "\noutputFolderPath " << outputFolderPath<< std::endl;
+    for (int i = 0; i < number_of_starting_points/2; i++){
+        std::cout<< List_of_Points[i].first << " , "<< List_of_Points[i].second << std::endl;
+        }
+
+
+    // Gets the name of the files
+    std::string fileName = extractMapName(mapFilePath);
+
+    // Stores the map vector
+    std::vector<std::vector<float>> map;
+
+    // Stores the rows and cols 
+    int rows, cols;
+    // reads the map and exits if the file isnt able to be opened
+    if(!readMap(mapFilePath, map, rows, cols)){
+        show_results(outputFolderPath,fileName, "File not found");
+        exit(12);
+    }
+
 
     // Fork for each starting point
-    for (const auto& startPoint : startPoints) {
+    for (int i = 0; i < number_of_starting_points/2; i++) {
         pid_t pid = fork();
         if (pid == 0) { // Child process
             // Check if the starting point is valid
@@ -61,7 +90,7 @@ int main(int argc, char *argv[]) {
             std::vector<std::pair<int, int>> path = steepestDescent(map, startPoint.first, startPoint.second);
 
             // Output Results for this skier
-            show_results(outputFolderPath, traceMode, startPoint.first, startPoint.second, path, fileName);
+            show_results(outputFolderPath, traceMode, startPoint.first, startPoint.second, path, fileName,i);
 
             exit(0); // Child process exits after completing its task
         } else if (pid < 0) {
@@ -71,15 +100,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Parent process waits for all child processes to finish
-    while (wait(nullptr) > 0);
-
-    // Combine results from individual skier output files
-    combine_results(outputFolderPath, startPoints.size(), fileName, traceMode);
-
-    // Clean up individual skier output files
-    cleanup_files(outputFolderPath, startPoints.size(), fileName);
-
+    // exit the program
     return 0;
 }
 
@@ -195,10 +216,10 @@ std::vector<std::pair<int, int>> steepestDescent(const std::vector<std::vector<f
 }
 
 // Write the results of the program
-void show_results(std::string outputFolderPath, bool traceMode, int startRow, int startCol, std::vector<std::pair<int, int>> path,std::string fileName) {
+void show_results(std::string outputFolderPath, bool traceMode, int startRow, int startCol, std::vector<std::pair<int, int>> path,std::string fileName,int i) {
 
     // Concat Output String
-    std::ofstream outFile(outputFolderPath +"/" + fileName +".txt");
+    std::ofstream outFile(outputFolderPath +"/" + fileName +"_" + i +".txt");
 
     // If you cant open output path exit
     if (!outFile.is_open()) {
@@ -266,38 +287,3 @@ std::string extractMapName(const std::string& mapFilePath) {
     }
     return fileName;
 }
-
-// Combine results from individual skier output files
-void combine_results(const std::string& outputFolderPath, int numSkiers, const std::string& mapName, bool traceMode) {
-    std::ofstream finalOutput(outputFolderPath + "/" + mapName + ".txt");
-    if (!finalOutput.is_open()) {
-        std::cerr << "Failed to open final output file" << std::endl;
-        exit(3);
-    }
-
-    finalOutput << (traceMode ? "TRACE" : "NO_TRACE") << std::endl;
-    finalOutput << numSkiers << std::endl;
-
-    for (int i = 0; i < numSkiers; ++i) {
-        std::string individualFileName = outputFolderPath + "/" + mapName + "_" + std::to_string(i) + ".txt";
-        std::ifstream individualFile(individualFileName);
-        if (!individualFile.is_open()) {
-            std::cerr << "Failed to open individual output file: " << individualFileName << std::endl;
-            continue;
-        }
-        finalOutput << individualFile.rdbuf();
-        individualFile.close();
-    }
-}
-
-// Clean up individual skier output files
-void cleanup_files(const std::string& outputFolderPath, int numSkiers, const std::string& mapName) {
-    for (int i = 0; i < numSkiers; ++i) {
-        std::string individualFileName = outputFolderPath + "/" + mapName + "_" + std::to_string(i) + ".txt";
-        if (remove(individualFileName.c_str()) != 0) {
-            std::cerr << "Error deleting file: " << individualFileName << std::endl;
-        }
-    }
-}
-
-// ... (Add any additional helper functions here)
