@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 // Read in the map to a 2D vector
 bool readMap(const std::string& filePath, std::vector<std::vector<float>>& map, int& rows, int& cols);
@@ -56,6 +57,12 @@ int main(int argc, char *argv[]) {
         outputFolderPath = argv[argc-1];
     }
 
+    if (!outputFolderPath.empty() && outputFolderPath.back() == '/') {
+        // Remove the last character
+        outputFolderPath.pop_back();
+    }
+    
+
     // Gets the name of the files
     std::string fileName = extractMapName(mapFilePath);
 
@@ -75,7 +82,7 @@ int main(int argc, char *argv[]) {
         pid_t pid = fork();
         if (pid == 0) { // Child process
             if (List_of_Points[i].first >= rows || List_of_Points[i].second >= cols) {
-                show_error((outputFolderPath + "/" + std::to_string(i)+".txt"), fileName, ("Start point at row=" + std::to_string(List_of_Points[i].first + 1) + ", column=" + std::to_string(List_of_Points[i].second + 1) + " is invalid."));
+                show_error((outputFolderPath + "/Temp/" + fileName + std::to_string(i)+".txt"), fileName, ("Start point at row=" + std::to_string(List_of_Points[i].first + 1) + ", column=" + std::to_string(List_of_Points[i].second + 1) + " is invalid."));
                 exit(1);
             }
 
@@ -227,7 +234,7 @@ std::vector<std::pair<int, int>> steepestDescent(const std::vector<std::vector<f
 void show_results(std::string outputFolderPath, bool traceMode, int startRow, int startCol, std::vector<std::pair<int, int>> path,std::string fileName,int i) {
 
     // Concat Output String
-    std::ofstream outFile(outputFolderPath + "/" + std::to_string(i)+".txt");
+    std::ofstream outFile(outputFolderPath + "/Temp/" + fileName + std::to_string(i)+".txt");
 
     // If you cant open output path exit
     if (!outFile.is_open()) {
@@ -291,7 +298,7 @@ std::string extractMapName(const std::string& mapFilePath) {
 
 
 bool concatenateFiles(const std::string& outputFolderPath, int numberOfStartingPoints, std::string fileName,bool traceMode) {
-    std::ofstream outFile(outputFolderPath + "/" + fileName + ".txt", std::ios::binary);
+    std::ofstream outFile(outputFolderPath + "/" + fileName + ".txt");
     if (!outFile.is_open()) {
         std::cerr << "Failed to open destination file: " << outputFolderPath << "/" << fileName << ".txt" << std::endl;
         return false;
@@ -303,8 +310,8 @@ bool concatenateFiles(const std::string& outputFolderPath, int numberOfStartingP
             outFile << "NO_TRACE" << "\n" << std::to_string((numberOfStartingPoints)/2) << std::endl;
         }
     for (int i = 0; i < numberOfStartingPoints / 2; i++) {
-        std::string inputFilePath = outputFolderPath + "/" + std::to_string(i) + ".txt";
-        std::ifstream inFile(inputFilePath, std::ios::binary);
+        std::string inputFilePath = outputFolderPath + "/Temp/" + fileName + std::to_string(i) + ".txt";
+        std::ifstream inFile(inputFilePath);
         if (!inFile.is_open()) {
             std::cerr << "Failed to open source file: " << inputFilePath << std::endl;
             continue;
