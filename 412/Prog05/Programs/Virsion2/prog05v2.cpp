@@ -17,13 +17,16 @@ std::vector<std::pair<int, int>> getNeighbors(int row, int col, int rows, int co
 std::vector<std::pair<int, int>> steepestDescent(const std::vector<std::vector<float>>& map, int startRow, int startCol);
 
 // Write the results of the program
-void show_results(std::string outputFolderPath, bool traceMode,int startRow, int startCol,std::vector<std::pair<int, int>> path,std::string fileName, int i);
+void show_results(std::string outputFolderPath, bool traceMode,int startRow, int startCol,std::vector<std::pair<int, int>> path,std::string fileName,int i);
 
 // Get the map file name
 std::string extractMapName(const std::string& mapFilePath);
 
 // Display the errors to the program output
 void show_error(std::string outputFolderPath,std::string fileName, std::string Output_String);
+
+
+bool concatenateFiles(const std::string& outputFolderPath, int number_of_starting_points,std::string fileName,bool traceMode);
 
 int main(int argc, char *argv[]) {
     // Store the variables inputed into the program
@@ -37,7 +40,6 @@ int main(int argc, char *argv[]) {
     // Stores the info when trace is true
     
     if (std::string(argv[1]) == "-t") {
-        number_of_starting_points--;
         traceMode = true;
         mapFilePath = argv[2];
         for (int i = 3; i <= number_of_starting_points; i+=2){
@@ -47,19 +49,12 @@ int main(int argc, char *argv[]) {
     }
     // Stores the info when the trace is false
     else{
-    traceMode = true;
         mapFilePath = argv[1];
         for (int i = 2; i <= number_of_starting_points; i+=2){
             List_of_Points.push_back({atoi(argv[i])-1, atoi(argv[i+1])-1});
         }
         outputFolderPath = argv[argc-1];
     }
-
-    std::cout<<"\nNUmber of starting points " << number_of_starting_points << "\nMap path " << mapFilePath << "\nTraceMOde " << traceMode << "\noutputFolderPath " << outputFolderPath<< std::endl;
-    for (int i = 0; i < number_of_starting_points/2; i++){
-        std::cout<< List_of_Points[i].first << " , "<< List_of_Points[i].second << std::endl;
-        }
-
 
     // Gets the name of the files
     std::string fileName = extractMapName(mapFilePath);
@@ -71,35 +66,48 @@ int main(int argc, char *argv[]) {
     int rows, cols;
     // reads the map and exits if the file isnt able to be opened
     if(!readMap(mapFilePath, map, rows, cols)){
-        show_results(outputFolderPath,fileName, "File not found");
+        show_error((outputFolderPath + "/" + fileName + ".txt"),fileName, "File not found");
         exit(12);
     }
 
-
-    // Fork for each starting point
+        std::vector<pid_t> childPIDs;
     for (int i = 0; i < number_of_starting_points/2; i++) {
         pid_t pid = fork();
         if (pid == 0) { // Child process
-            // Check if the starting point is valid
-            if (startPoint.first >= rows || startPoint.second >= cols) {
-                show_error(outputFolderPath, fileName, "Start point at row=" + std::to_string(startPoint.first + 1) + ", column=" + std::to_string(startPoint.second + 1) + " is invalid.");
+            if (List_of_Points[i].first >= rows || List_of_Points[i].second >= cols) {
+                show_error((outputFolderPath + "/" + std::to_string(i)+".txt"), fileName, ("Start point at row=" + std::to_string(List_of_Points[i].first + 1) + ", column=" + std::to_string(List_of_Points[i].second + 1) + " is invalid."));
                 exit(1);
             }
 
             // Run the Steepest Descent Algorithm for this starting point
-            std::vector<std::pair<int, int>> path = steepestDescent(map, startPoint.first, startPoint.second);
+            std::vector<std::pair<int, int>> path = steepestDescent(map, List_of_Points[i].first, List_of_Points[i].second);
 
             // Output Results for this skier
-            show_results(outputFolderPath, traceMode, startPoint.first, startPoint.second, path, fileName,i);
+            show_results(outputFolderPath, traceMode, List_of_Points[i].first, List_of_Points[i].second, path, fileName,i);
 
             exit(0); // Child process exits after completing its task
         } else if (pid < 0) {
             // Handle fork failure
-            std::cerr << "Failed to fork for starting point (" << startPoint.first << ", " << startPoint.second << ")" << std::endl;
+            std::cerr << "Failed to fork for starting point (" << List_of_Points[i].first << ", " << List_of_Points[i].second << ")" << std::endl;
             exit(2);
+        } else {
+            // In the parent process, save the PID of the child
+            childPIDs.push_back(pid);
         }
     }
 
+    // In the parent process, wait for all child processes to complete
+    for (pid_t pid : childPIDs) {
+        int status;
+        waitpid(pid, &status, 0); // Wait for the specific child process to terminate
+    }
+
+    // After all child processes have completed, run concatenateFiles
+    if (concatenateFiles(outputFolderPath, number_of_starting_points, fileName,traceMode)) {
+        std::cout << "Files were successfully concatenated" << std::endl;
+    } else {
+        std::cout << "There was a problem concatenating the files." << std::endl;
+    }
     // exit the program
     return 0;
 }
@@ -219,18 +227,11 @@ std::vector<std::pair<int, int>> steepestDescent(const std::vector<std::vector<f
 void show_results(std::string outputFolderPath, bool traceMode, int startRow, int startCol, std::vector<std::pair<int, int>> path,std::string fileName,int i) {
 
     // Concat Output String
-    std::ofstream outFile(outputFolderPath +"/" + fileName +"_" + i +".txt");
+    std::ofstream outFile(outputFolderPath + "/" + std::to_string(i)+".txt");
 
     // If you cant open output path exit
     if (!outFile.is_open()) {
         exit(11);
-    }
-
-    // Checks for trace mode on or off
-    if (traceMode) {
-        outFile << "TRACE" << std::endl;
-    } else {
-        outFile << "NO_TRACE" << std::endl;
     }
 
     // Write to the file the starting point, end point, and amount of jumps to neighbors
@@ -246,9 +247,9 @@ void show_results(std::string outputFolderPath, bool traceMode, int startRow, in
 }
 
 // Display the errors to the program output
-void show_results(std::string outputFolderPath,std::string fileName, std::string Output_String) {
+void show_error(std::string outputFolderPath,std::string fileName, std::string Output_String) {
     // Concat Output String
-    std::ofstream outFile(outputFolderPath + "/" + fileName + ".txt");
+    std::ofstream outFile(outputFolderPath);
 
     // If you cant open output path exit
     if (!outFile.is_open()) {
@@ -286,4 +287,40 @@ std::string extractMapName(const std::string& mapFilePath) {
         fileName += mapFilePath[i];
     }
     return fileName;
+}
+
+
+bool concatenateFiles(const std::string& outputFolderPath, int numberOfStartingPoints, std::string fileName,bool traceMode) {
+    std::ofstream outFile(outputFolderPath + "/" + fileName + ".txt", std::ios::binary);
+    if (!outFile.is_open()) {
+        std::cerr << "Failed to open destination file: " << outputFolderPath << "/" << fileName << ".txt" << std::endl;
+        return false;
+    }
+
+    if (traceMode) {
+        outFile << "TRACE" << "\n" << std::to_string((numberOfStartingPoints-1)/2) << std::endl;
+        } else {
+            outFile << "NO_TRACE" << "\n" << std::to_string((numberOfStartingPoints)/2) << std::endl;
+        }
+    for (int i = 0; i < numberOfStartingPoints / 2; i++) {
+        std::string inputFilePath = outputFolderPath + "/" + std::to_string(i) + ".txt";
+        std::ifstream inFile(inputFilePath, std::ios::binary);
+        if (!inFile.is_open()) {
+            std::cerr << "Failed to open source file: " << inputFilePath << std::endl;
+            continue;
+        }
+
+        // Read from the input file and write to the output file
+        std::string line;
+        // Checks for trace mode on or off
+        
+        while (std::getline(inFile, line)) {
+                outFile << line << "\n";
+            }
+
+        inFile.close(); // Close the inFile after reading its content
+    }
+
+    outFile.close(); // Close the outFile after all files have been processed
+    return true;
 }
