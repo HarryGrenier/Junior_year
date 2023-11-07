@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
         if (pid == 0) { // Child process
             close(fds[0]); // Close the read end of the pipe in the child
             if (List_of_Points[i].first >= rows || List_of_Points[i].second >= cols) {
-                show_error((outputFolderPath + "/Temp/" + fileName + std::to_string(i)+".txt"), fileName, ("Start point at row=" + std::to_string(List_of_Points[i].first + 1) + ", column=" + std::to_string(List_of_Points[i].second + 1) + " is invalid."));
+                oss << ("Start point at row=" + std::to_string(List_of_Points[i].first + 1) + ", column=" + std::to_string(List_of_Points[i].second + 1) + " is invalid.\n")
                 exit(1);
             }
 
