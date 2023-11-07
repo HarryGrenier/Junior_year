@@ -7,7 +7,6 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <cstring>
 
 // Read in the map to a 2D vector
 bool readMap(const std::string& filePath, std::vector<std::vector<float>>& map, int& rows, int& cols);
@@ -25,9 +24,8 @@ std::string extractMapName(const std::string& mapFilePath);
 void show_error(std::string outputFolderPath,std::string fileName, std::string Output_String);
 
 
-
 int main(int argc, char *argv[]) {
-       // Store the variables inputed into the program
+    // Store the variables inputed into the program
     bool traceMode = false; // Stores true or false for if trace mode is needed
     std::string mapFilePath; // Like to the map path
     std::vector<std::pair<int,int>> List_of_Points;
@@ -76,12 +74,12 @@ int main(int argc, char *argv[]) {
     }
 
     std::vector<pid_t> childPIDs;
-    std::vector<int> pipefds;
+    std::vector<int> pipefds; // Vector to store file descriptors for pipes
 
-    for (int i = 0; i < number_of_starting_points / 2; i++) {
+    for (int i = 0; i < number_of_starting_points/2; i++) {
         int fds[2];
         if (pipe(fds) == -1) {
-            std::cerr << "Failed to create a pipe: " << strerror(errno) << std::endl;
+            std::cerr << "Failed to create a pipe" << std::endl;
             exit(3);
         }
 
@@ -105,19 +103,10 @@ int main(int argc, char *argv[]) {
             // Write the string stream contents to the pipe
             write(fds[1], oss.str().c_str(), oss.str().size());
 
-
-            // Write the string stream contents to the pipe
-            std::string output = oss.str();
-            std::cout<< output << std::endl;
-            ssize_t bytes_written = write(fds[1], output.c_str(), output.size());
-            if (bytes_written < 0) {
-                std::cerr << "Failed to write to pipe: " << strerror(errno) << std::endl;
-            }
-
             close(fds[1]); // Close the write end of the pipe
             exit(0); // Child process exits after completing its task
         } else if (pid < 0) {
-            std::cerr << "Failed to fork: " << strerror(errno) << std::endl;
+            std::cerr << "Failed to fork for starting point (" << List_of_Points[i].first << ", " << List_of_Points[i].second << ")" << std::endl;
             exit(2);
         } else {
             close(fds[1]); // Close the write end of the pipe in the parent
@@ -132,22 +121,24 @@ int main(int argc, char *argv[]) {
     }
 
     // Open the final output file once
-    std::ofstream outFile(outputFolderPath + "/" + fileName + ".txt", std::ios::out | std::ios::trunc);
+    std::ofstream outFile(outputFolderPath + "/" + fileName + ".txt");
     if (!outFile.is_open()) {
-        std::cerr << "Failed to open final output file: " << strerror(errno) << std::endl;
+        std::cerr << "Failed to open final output file." << std::endl;
         exit(4);
     }
 
     for (size_t i = 0; i < childPIDs.size(); ++i) {
+        int status;
+        pid_t pid = waitpid(childPIDs[i], &status, 0); // Wait for the specific child process to terminate
+
         // Read from the pipe
         char buffer[4096]; // Adjust size as necessary
         ssize_t bytes_read = read(pipefds[i], buffer, sizeof(buffer) - 1);
-        if (bytes_read < 0) {
-            std::cerr << "Failed to read from pipe: " << strerror(errno) << std::endl;
-        } else if (bytes_read > 0) {
+        if (bytes_read > 0) {
             buffer[bytes_read] = '\0'; // Null-terminate the string
             outFile << buffer; // Write to the final output file
         }
+
         close(pipefds[i]); // Close the read end of the pipe
     }
 
