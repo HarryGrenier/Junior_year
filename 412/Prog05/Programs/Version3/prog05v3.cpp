@@ -10,18 +10,23 @@
 
 // Read in the map to a 2D vector
 bool readMap(const std::string& filePath, std::vector<std::vector<float>>& map, int& rows, int& cols);
-
 // Finds the neighboring points to a point
 std::vector<std::pair<int, int>> getNeighbors(int row, int col, int rows, int cols);
-
 // Calcuate the lowest point path
 std::vector<std::pair<int, int>> steepestDescent(const std::vector<std::vector<float>>& map, int startRow, int startCol);
-
 // Get the map file name
 std::string extractMapName(const std::string& mapFilePath);
-
 // Display the errors to the program output
 void show_error(std::string outputFolderPath,std::string fileName, std::string Output_String);
+//
+void parseArguments(int argc, char *argv[], bool& traceMode, std::string& mapFilePath, std::vector<std::pair<int,int>>& List_of_Points, std::string& outputFolderPath,int number_of_starting_points);
+//
+bool initializeOutputFile(std::ofstream& outFile, bool traceMode, int numberOfStartingPoints);
+//
+void createAndManageProcesses(const std::vector<std::pair<int,int>>& List_of_Points, std::vector<pid_t>& childPIDs, std::vector<int>& pipefds, const std::vector<std::vector<float>>& map, int rows, int cols, bool traceMode);
+//
+void collectAndWriteResults(const std::vector<pid_t>& childPIDs, const std::vector<int>& pipefds, const std::string& Combined_Output,std::ofstream& outFile);
+
 
 
 int main(int argc, char *argv[]) {
@@ -31,7 +36,123 @@ int main(int argc, char *argv[]) {
     std::vector<std::pair<int,int>> List_of_Points;
     std::string outputFolderPath; // Stores the path to the output folder 
     int number_of_starting_points = argc - 3;
+    std::vector<std::vector<float>> map; // Stores the map vector 
+    int rows, cols; // Stores the rows and cols
+    std::vector<pid_t> childPIDs;
+    std::vector<int> pipefds; // Vector to store file descriptors for pipes
+    
+    parseArguments(argc, argv, traceMode, mapFilePath, List_of_Points, outputFolderPath,number_of_starting_points);
 
+    // Gets the name of the files
+    std::string fileName = extractMapName(mapFilePath);
+    const std::string Combined_Output = (outputFolderPath + "/" + fileName + ".txt");
+
+    // reads the map and exits if the file isnt able to be opened
+    if(!readMap(mapFilePath, map, rows, cols)){
+        show_error((Combined_Output),fileName, "File not found");
+        exit(12);
+    }
+
+    std::ofstream outFile(Combined_Output);
+
+    if(!initializeOutputFile(outFile, traceMode, List_of_Points.size())){
+        exit(11);
+    }
+
+    // Create and manage processes
+    createAndManageProcesses(List_of_Points, childPIDs, pipefds, map, rows, cols, traceMode);
+
+    collectAndWriteResults(childPIDs, pipefds, Combined_Output,outFile);
+
+    return 0;
+}
+
+void createAndManageProcesses(const std::vector<std::pair<int,int>>& List_of_Points, std::vector<pid_t>& childPIDs, std::vector<int>& pipefds, const std::vector<std::vector<float>>& map, int rows, int cols, bool traceMode){
+for (int i = 0; i < List_of_Points.size(); i++) {
+    int fds[2];
+    if (pipe(fds) == -1) {
+        std::cerr << "Failed to create a pipe" << std::endl;
+        exit(3);
+    }
+    pid_t pid = fork();
+    if (pid == 0) { // Child process
+        close(fds[0]); // Close the read end of the pipe in the child
+        // Instead of show_results, write to the pipe
+        std::ostringstream oss;
+        if (List_of_Points[i].first >= rows || List_of_Points[i].second >= cols) {
+            oss << "Start point at row=" << List_of_Points[i].first + 1 << ", column=" << List_of_Points[i].second + 1 << " is invalid." << std::endl;
+        }else{
+            std::vector<std::pair<int, int>> path = steepestDescent(map, List_of_Points[i].first, List_of_Points[i].second);
+
+        if (traceMode) {
+            oss << List_of_Points[i].first + 1 << " " << List_of_Points[i].second + 1 << " " << (path.back().first + 1) << " " << (path.back().second + 1) << " " << path.size() << std::endl;
+            for (const auto& point : path) {
+                oss << (point.first + 1) << " " << (point.second + 1) << " ";
+            }
+            oss << std::endl;
+        }else{
+            oss << List_of_Points[i].first + 1 << " " << List_of_Points[i].second + 1 << " " << (path.back().first + 1) << " " << (path.back().second + 1) << " " << path.size() << std::endl;
+        }}
+        // Write the string stream contents to the pipe
+        write(fds[1], oss.str().c_str(), oss.str().size());
+        close(fds[1]); // Close the write end of the pipe
+        exit(0); // Child process exits after completing its task
+        } else if (pid < 0) {
+            std::cerr << "Failed to fork for starting point (" << List_of_Points[i].first << ", " << List_of_Points[i].second << ")" << std::endl;
+            exit(2);
+        } else {
+            close(fds[1]); // Close the write end of the pipe in the parent
+            pipefds.push_back(fds[0]); // Save the read end to read from later
+            childPIDs.push_back(pid);
+        }
+    }
+}
+
+void collectAndWriteResults(const std::vector<pid_t>& childPIDs, const std::vector<int>& pipefds, const std::string& Combined_Output,std::ofstream& outFile){
+    // Open the final output file once
+    outFile.open(Combined_Output, std::ios_base::app);
+    if (!outFile.is_open()) {
+        std::cerr << "Failed to open final output file in append mode." << std::endl;
+        exit(4);
+        }
+
+    for (size_t i = 0; i < childPIDs.size(); ++i) {
+        int status;
+        pid_t pid = waitpid(childPIDs[i], &status, 0); // Wait for the specific child process to terminate
+
+        // Read from the pipe
+        char buffer[4096]; // Adjust size as necessary
+        ssize_t bytes_read = read(pipefds[i], buffer, sizeof(buffer) - 1);
+        if (bytes_read > 0) {
+            buffer[bytes_read] = '\0'; // Null-terminate the string
+            outFile << buffer; // Write to the final output file
+        }
+
+        close(pipefds[i]); // Close the read end of the pipe
+    }
+
+    outFile.close(); // Close the final output file
+}
+
+bool initializeOutputFile(std::ofstream& outFile, bool traceMode, int number_of_starting_points){
+
+    if (!outFile.is_open()) {
+        return 0;
+    }
+
+    // Write TRACE or NO_TRACE as the first line
+    if (traceMode) {
+        outFile << "TRACE\n" << (number_of_starting_points) << std::endl;
+    } else {
+        outFile << "NO_TRACE\n" << number_of_starting_points << std::endl;
+    }
+
+    // Close the file after writing the first line
+    outFile.close();
+    return 1;
+}
+
+void parseArguments(int argc, char *argv[], bool& traceMode, std::string& mapFilePath, std::vector<std::pair<int,int>>& List_of_Points, std::string& outputFolderPath,int number_of_starting_points){
     // Stores the info when trace is true
     
     if (std::string(argv[1]) == "-t") {
@@ -55,115 +176,7 @@ int main(int argc, char *argv[]) {
         // Remove the last character
         outputFolderPath.pop_back();
     }
-    
 
-    // Gets the name of the files
-    std::string fileName = extractMapName(mapFilePath);
-
-    // Stores the map vector
-    std::vector<std::vector<float>> map;
-
-    // Stores the rows and cols 
-    int rows, cols;
-
-    // reads the map and exits if the file isnt able to be opened
-    if(!readMap(mapFilePath, map, rows, cols)){
-        show_error((outputFolderPath + "/" + fileName + ".txt"),fileName, "File not found");
-        exit(12);
-    }
-
-    std::ofstream outFile(outputFolderPath + "/" + fileName + ".txt");
-    if (!outFile.is_open()) {
-        std::cerr << "Failed to open final output file." << std::endl;
-        exit(4);
-    }
-
-    // Write TRACE or NO_TRACE as the first line
-    if (traceMode) {
-        outFile << "TRACE" << std::endl;
-    } else {
-        outFile << "NO_TRACE" << std::endl;
-    }
-
-    // Close the file after writing the first line
-    outFile.close();
-
-    std::vector<pid_t> childPIDs;
-    std::vector<int> pipefds; // Vector to store file descriptors for pipes
-
-
-    for (int i = 0; i < number_of_starting_points/2; i++) {
-        int fds[2];
-        if (pipe(fds) == -1) {
-            std::cerr << "Failed to create a pipe" << std::endl;
-            exit(3);
-        }
-
-        pid_t pid = fork();
-        if (pid == 0) { // Child process
-            close(fds[0]); // Close the read end of the pipe in the child
-            if (List_of_Points[i].first >= rows || List_of_Points[i].second >= cols) {
-                oss << ("Start point at row=" + std::to_string(List_of_Points[i].first + 1) + ", column=" + std::to_string(List_of_Points[i].second + 1) + " is invalid.\n")
-                exit(1);
-            }
-
-            std::vector<std::pair<int, int>> path = steepestDescent(map, List_of_Points[i].first, List_of_Points[i].second);
-            // Instead of show_results, write to the pipe
-            std::ostringstream oss;
-            if (traceMode) {
-                oss << List_of_Points[i].first + 1 << " " << List_of_Points[i].second + 1 << " " << (path.back().first + 1) << " " << (path.back().second + 1) << " " << path.size() << std::endl;
-                for (const auto& point : path) {
-                    oss << (point.first + 1) << " " << (point.second + 1) << " ";
-                }
-                oss << std::endl;
-            }else{
-                oss << List_of_Points[i].first + 1 << " " << List_of_Points[i].second + 1 << " " << (path.back().first + 1) << " " << (path.back().second + 1) << " " << path.size() << std::endl;
-            }
-            // Write the string stream contents to the pipe
-            write(fds[1], oss.str().c_str(), oss.str().size());
-
-            close(fds[1]); // Close the write end of the pipe
-            exit(0); // Child process exits after completing its task
-        } else if (pid < 0) {
-            std::cerr << "Failed to fork for starting point (" << List_of_Points[i].first << ", " << List_of_Points[i].second << ")" << std::endl;
-            exit(2);
-        } else {
-            close(fds[1]); // Close the write end of the pipe in the parent
-            pipefds.push_back(fds[0]); // Save the read end to read from later
-            childPIDs.push_back(pid);
-        }
-    }
-
-    for (pid_t pid : childPIDs) {
-        int status;
-        waitpid(pid, &status, 0); // Wait for the specific child process to terminate
-    }
-
-    // Open the final output file once
-    outFile.open(outputFolderPath + "/" + fileName + ".txt", std::ios_base::app);
-    if (!outFile.is_open()) {
-        std::cerr << "Failed to open final output file in append mode." << std::endl;
-        exit(4);
-        }
-
-    for (size_t i = 0; i < childPIDs.size(); ++i) {
-        int status;
-        pid_t pid = waitpid(childPIDs[i], &status, 0); // Wait for the specific child process to terminate
-
-        // Read from the pipe
-        char buffer[4096]; // Adjust size as necessary
-        ssize_t bytes_read = read(pipefds[i], buffer, sizeof(buffer) - 1);
-        if (bytes_read > 0) {
-            buffer[bytes_read] = '\0'; // Null-terminate the string
-            outFile << buffer; // Write to the final output file
-        }
-
-        close(pipefds[i]); // Close the read end of the pipe
-    }
-
-    outFile.close(); // Close the final output file
-
-    return 0;
 }
 
 // Read in the map to a 2D vector
