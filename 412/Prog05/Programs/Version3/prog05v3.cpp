@@ -25,8 +25,9 @@ std::string extractMapName(const std::string& mapFilePath);
 void show_error(std::string outputFolderPath,std::string fileName, std::string Output_String);
 
 
+
 int main(int argc, char *argv[]) {
-    // Store the variables inputed into the program
+       // Store the variables inputed into the program
     bool traceMode = false; // Stores true or false for if trace mode is needed
     std::string mapFilePath; // Like to the map path
     std::vector<std::pair<int,int>> List_of_Points;
@@ -67,6 +68,7 @@ int main(int argc, char *argv[]) {
 
     // Stores the rows and cols 
     int rows, cols;
+
     // reads the map and exits if the file isnt able to be opened
     if(!readMap(mapFilePath, map, rows, cols)){
         show_error((outputFolderPath + "/" + fileName + ".txt"),fileName, "File not found");
@@ -86,7 +88,23 @@ int main(int argc, char *argv[]) {
         pid_t pid = fork();
         if (pid == 0) { // Child process
             close(fds[0]); // Close the read end of the pipe in the child
-            // ... (Child process code remains the same)
+            if (List_of_Points[i].first >= rows || List_of_Points[i].second >= cols) {
+                show_error((outputFolderPath + "/Temp/" + fileName + std::to_string(i)+".txt"), fileName, ("Start point at row=" + std::to_string(List_of_Points[i].first + 1) + ", column=" + std::to_string(List_of_Points[i].second + 1) + " is invalid."));
+                exit(1);
+            }
+
+            std::vector<std::pair<int, int>> path = steepestDescent(map, List_of_Points[i].first, List_of_Points[i].second);
+            // Instead of show_results, write to the pipe
+            std::ostringstream oss;
+            if (traceMode) {
+                for (const auto& point : path) {
+                    oss << (point.first + 1) << " " << (point.second + 1) << " ";
+                }
+                oss << std::endl;
+            }
+            // Write the string stream contents to the pipe
+            write(fds[1], oss.str().c_str(), oss.str().size());
+
 
             // Write the string stream contents to the pipe
             std::string output = oss.str();
@@ -136,7 +154,6 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-
 
 // Read in the map to a 2D vector
 bool readMap(const std::string& filePath, std::vector<std::vector<float>>& map, int& rows, int& cols) {
