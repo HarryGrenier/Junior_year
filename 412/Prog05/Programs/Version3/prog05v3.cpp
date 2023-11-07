@@ -30,7 +30,6 @@ int main(int argc, char *argv[]) {
     std::string mapFilePath; // Like to the map path
     std::vector<std::pair<int,int>> List_of_Points;
     std::string outputFolderPath; // Stores the path to the output folder 
-
     int number_of_starting_points = argc - 3;
 
     // Stores the info when trace is true
@@ -73,8 +72,25 @@ int main(int argc, char *argv[]) {
         exit(12);
     }
 
+    std::ofstream outFile(outputFolderPath + "/" + fileName + ".txt");
+    if (!outFile.is_open()) {
+        std::cerr << "Failed to open final output file." << std::endl;
+        exit(4);
+    }
+
+    // Write TRACE or NO_TRACE as the first line
+    if (traceMode) {
+        outFile << "TRACE" << std::endl;
+    } else {
+        outFile << "NO_TRACE" << std::endl;
+    }
+
+    // Close the file after writing the first line
+    outFile.close();
+
     std::vector<pid_t> childPIDs;
     std::vector<int> pipefds; // Vector to store file descriptors for pipes
+
 
     for (int i = 0; i < number_of_starting_points/2; i++) {
         int fds[2];
@@ -95,10 +111,13 @@ int main(int argc, char *argv[]) {
             // Instead of show_results, write to the pipe
             std::ostringstream oss;
             if (traceMode) {
+                oss << List_of_Points[i].first + 1 << " " << List_of_Points[i].second + 1 << " " << (path.back().first + 1) << " " << (path.back().second + 1) << " " << path.size() << std::endl;
                 for (const auto& point : path) {
                     oss << (point.first + 1) << " " << (point.second + 1) << " ";
                 }
                 oss << std::endl;
+            }else{
+                oss << List_of_Points[i].first + 1 << " " << List_of_Points[i].second + 1 << " " << (path.back().first + 1) << " " << (path.back().second + 1) << " " << path.size() << std::endl;
             }
             // Write the string stream contents to the pipe
             write(fds[1], oss.str().c_str(), oss.str().size());
@@ -121,11 +140,11 @@ int main(int argc, char *argv[]) {
     }
 
     // Open the final output file once
-    std::ofstream outFile(outputFolderPath + "/" + fileName + ".txt");
+    outFile.open(outputFolderPath + "/" + fileName + ".txt", std::ios_base::app);
     if (!outFile.is_open()) {
-        std::cerr << "Failed to open final output file." << std::endl;
+        std::cerr << "Failed to open final output file in append mode." << std::endl;
         exit(4);
-    }
+        }
 
     for (size_t i = 0; i < childPIDs.size(); ++i) {
         int status;
