@@ -49,6 +49,11 @@ int main(int argc, char *argv[]) {
     startRow -= 1;
     startCol -= 1;
 
+    if (!outputFolderPath.empty() && outputFolderPath.back() == '/') {
+        // Remove the last character
+        outputFolderPath.pop_back();
+    }
+
     // Gets the name of the files
     std::string fileName = extractMapName(mapFilePath);
 
