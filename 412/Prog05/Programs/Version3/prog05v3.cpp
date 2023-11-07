@@ -108,6 +108,7 @@ int main(int argc, char *argv[]) {
 
             // Write the string stream contents to the pipe
             std::string output = oss.str();
+            std::cout<< output << std::endl;
             ssize_t bytes_written = write(fds[1], output.c_str(), output.size());
             if (bytes_written < 0) {
                 std::cerr << "Failed to write to pipe: " << strerror(errno) << std::endl;
