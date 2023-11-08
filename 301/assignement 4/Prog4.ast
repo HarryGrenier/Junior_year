@@ -1,0 +1,8 @@
+function map with f:%function do
+    return (lambda with l:%list do l @map f).
+end
+
+assert((map (lambda with n do n+1) [1,2,3]) == [2,3,4]).
+assert((map len ["Hello", "world"]) == [5,5]).
+let plusone = map (lambda with n do n+1).
+assert((plusone [1,2,3]) == [2,3,4]).
