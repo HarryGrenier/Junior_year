@@ -111,12 +111,11 @@ int main(int argc, char *argv[]) {
 
     // After all child processes have completed, run concatenateFiles
     if (concatenateFiles(outputFolderPath, number_of_starting_points, fileName,traceMode,childPIDs)) {
-        std::cout << "Files were successfully concatenated" << std::endl;
+        return 0;
     } else {
         std::cout << "There was a problem concatenating the files." << std::endl;
     }
-    // exit the program
-    return 0;
+    
 }
 
 // Read in the map to a 2D vector
