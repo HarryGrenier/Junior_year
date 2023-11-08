@@ -18,7 +18,7 @@ std::vector<std::pair<int, int>> getNeighbors(int row, int col, int rows, int co
 std::vector<std::pair<int, int>> steepestDescent(const std::vector<std::vector<float>>& map, int startRow, int startCol);
 
 // Write the results of the program
-void show_results(std::string outputFolderPath, bool traceMode,int startRow, int startCol,std::vector<std::pair<int, int>> path,std::string fileName,int i);
+void show_results(std::string outputFolderPath, bool traceMode,int startRow, int startCol,std::vector<std::pair<int, int>> path,std::string fileName,int i,std::vector<pid_t> childPIDs);
 
 // Get the map file name
 std::string extractMapName(const std::string& mapFilePath);
@@ -27,7 +27,7 @@ std::string extractMapName(const std::string& mapFilePath);
 void show_error(std::string outputFolderPath,std::string fileName, std::string Output_String);
 
 
-bool concatenateFiles(const std::string& outputFolderPath, int number_of_starting_points,std::string fileName,bool traceMode);
+bool concatenateFiles(const std::string& outputFolderPath, int number_of_starting_points,std::string fileName,bool traceMode,std::vector<pid_t> childPIDs);
 
 int main(int argc, char *argv[]) {
     // Store the variables inputed into the program
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
         pid_t pid = fork();
         if (pid == 0) { // Child process
             if (List_of_Points[i].first >= rows || List_of_Points[i].second >= cols) {
-                show_error((outputFolderPath + "/Temp/" + fileName + std::to_string(i)+".txt"), fileName, ("Start point at row=" + std::to_string(List_of_Points[i].first + 1) + ", column=" + std::to_string(List_of_Points[i].second + 1) + " is invalid."));
+                show_error((outputFolderPath + "/Temp/" + std::to_string(getpid())+".txt"), fileName, ("Start point at row=" + std::to_string(List_of_Points[i].first + 1) + ", column=" + std::to_string(List_of_Points[i].second + 1) + " is invalid."));
                 exit(1);
             }
 
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
             std::vector<std::pair<int, int>> path = steepestDescent(map, List_of_Points[i].first, List_of_Points[i].second);
 
             // Output Results for this skier
-            show_results(outputFolderPath, traceMode, List_of_Points[i].first, List_of_Points[i].second, path, fileName,i);
+            show_results(outputFolderPath, traceMode, List_of_Points[i].first, List_of_Points[i].second, path, fileName,i,childPIDs);
 
             exit(0); // Child process exits after completing its task
         } else if (pid < 0) {
@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
     }
 
     // After all child processes have completed, run concatenateFiles
-    if (concatenateFiles(outputFolderPath, number_of_starting_points, fileName,traceMode)) {
+    if (concatenateFiles(outputFolderPath, number_of_starting_points, fileName,traceMode,childPIDs)) {
         std::cout << "Files were successfully concatenated" << std::endl;
     } else {
         std::cout << "There was a problem concatenating the files." << std::endl;
@@ -231,10 +231,10 @@ std::vector<std::pair<int, int>> steepestDescent(const std::vector<std::vector<f
 }
 
 // Write the results of the program
-void show_results(std::string outputFolderPath, bool traceMode, int startRow, int startCol, std::vector<std::pair<int, int>> path,std::string fileName,int i) {
+void show_results(std::string outputFolderPath, bool traceMode, int startRow, int startCol, std::vector<std::pair<int, int>> path,std::string fileName,int i,std::vector<pid_t> childPIDs) {
 
     // Concat Output String
-    std::ofstream outFile(outputFolderPath + "/Temp/" + fileName + std::to_string(i)+".txt");
+    std::ofstream outFile(outputFolderPath + "/Temp/" + std::to_string(getpid())+".txt");
 
     // If you cant open output path exit
     if (!outFile.is_open()) {
@@ -297,7 +297,7 @@ std::string extractMapName(const std::string& mapFilePath) {
 }
 
 
-bool concatenateFiles(const std::string& outputFolderPath, int numberOfStartingPoints, std::string fileName,bool traceMode) {
+bool concatenateFiles(const std::string& outputFolderPath, int numberOfStartingPoints, std::string fileName,bool traceMode,std::vector<pid_t> childPIDs) {
     std::ofstream outFile(outputFolderPath + "/" + fileName + ".txt");
     if (!outFile.is_open()) {
         std::cerr << "Failed to open destination file: " << outputFolderPath << "/" << fileName << ".txt" << std::endl;
@@ -310,7 +310,7 @@ bool concatenateFiles(const std::string& outputFolderPath, int numberOfStartingP
             outFile << "NO_TRACE" << "\n" << std::to_string((numberOfStartingPoints)/2) << std::endl;
         }
     for (int i = 0; i < numberOfStartingPoints / 2; i++) {
-        std::string inputFilePath = outputFolderPath + "/Temp/" + fileName + std::to_string(i) + ".txt";
+        std::string inputFilePath = outputFolderPath + "/Temp/" +  std::to_string(childPIDs[i]) + ".txt";
         std::ifstream inFile(inputFilePath);
         if (!inFile.is_open()) {
             std::cerr << "Failed to open source file: " << inputFilePath << std::endl;
