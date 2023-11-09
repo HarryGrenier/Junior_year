@@ -6,10 +6,10 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-g++ Programs/Version1/prog05v1.cpp --std=c++20 -o Compiled/prog05v1
-g++ Programs/Version2/prog05v2.cpp --std=c++20 -o Compiled/prog05v2
+# Compile the programs
 g++ Programs/Version3/prog05v3.cpp --std=c++20 -o Compiled/prog05v3
 
+# Make the compiled programs executable
 chmod +x Compiled/*
 
 DATA_FOLDER=$1
@@ -29,27 +29,24 @@ else
     rm -rf "$OUTPUT_FOLDER"/*
 fi
 
-# Create the Temp directory inside the output folder
 mkdir -p "$TEMP_FOLDER"
 
 # Process each task file in the data folder
 for task_file in "$DATA_FOLDER"/*.task; do
+    # Initialize variables
     TRACE_FLAG=""
-    PROGRAM_MAP_LINE=""
+    MAP_FILE=""
     SKIER_COUNT=0
     SKIER_POINTS=()
-    OUTPUT_FILE="$OUTPUT_FOLDER/"
-
+    
     # Read the task file
     while IFS= read -r line || [[ -n "$line" ]]; do
-        if [[ -z "$PROGRAM_MAP_LINE" ]]; then
-            if [[ "$line" == "TRACE" ]]; then
-                TRACE_FLAG="-t"
-            elif [[ "$line" == "NO TRACE" ]]; then
-                TRACE_FLAG=""
-            else
-                PROGRAM_MAP_LINE="$line"
-            fi
+        if [[ "$line" == "TRACE" ]]; then
+            TRACE_FLAG="-t"
+        elif [[ "$line" == "NO TRACE" ]]; then
+            TRACE_FLAG=""
+        elif [[ -z "$MAP_FILE" ]]; then
+            MAP_FILE="$line"
         elif [[ "$SKIER_COUNT" -eq 0 ]]; then
             SKIER_COUNT="$line"
         else
@@ -57,12 +54,11 @@ for task_file in "$DATA_FOLDER"/*.task; do
         fi
     done < "$task_file"
 
-    # Extract program name and map file from the combined line
-    PROGRAM_NAME=$(echo $PROGRAM_MAP_LINE | awk '{print $1}')
-    MAP_FILE=$(echo $PROGRAM_MAP_LINE | awk '{print $2}')
+    # Construct the output file name
+    OUTPUT_FILE="$OUTPUT_FOLDER/"
 
     # Construct the command to run the skier dispatcher
-    CMD="$PROGRAM_NAME $TRACE_FLAG $MAP_FILE"
+    CMD="Compiled/prog05v3 $TRACE_FLAG $MAP_FILE"
     for point in "${SKIER_POINTS[@]}"; do
         CMD="$CMD $point"
     done
@@ -71,3 +67,6 @@ for task_file in "$DATA_FOLDER"/*.task; do
     # Run the skier dispatcher command in the background
     eval $CMD &
 done
+
+# Wait for all background processes to finish
+wait

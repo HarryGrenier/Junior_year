@@ -6,18 +6,18 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-# Compile programs
-g++ Programs/Version1/prog05v1.cpp --std=c++20 -o Compiled/prog05v1
-g++ Programs/Version2/prog05v2.cpp --std=c++20 -o Compiled/prog05v2
+# Compile the programs
 g++ Programs/Version3/prog05v3.cpp --std=c++20 -o Compiled/prog05v3
+
+# Make the compiled programs executable
 chmod +x Compiled/*
 
-# Monitor the specified folder for task files
 WATCH_FOLDER=$1
 OUTPUT_FOLDER=$2
 TEMP_FOLDER="$OUTPUT_FOLDER/Temp"
+
 # Create the watch folder if it doesn't exist
-if [ ! -d "$WATCH__FOLDER" ]; then
+if [ ! -d "$WATCH_FOLDER" ]; then
     mkdir -p "$WATCH_FOLDER"
 fi
 
@@ -28,43 +28,35 @@ else
     rm -rf "$OUTPUT_FOLDER"/*
 fi
 
-# Create the Temp directory inside the output folder
 mkdir -p "$TEMP_FOLDER"
 
-
 process_task_file() {
-    NEWFILE=$1
-    echo "Processing task file: $NEWFILE"
-
+    TASK_FILE=$1
     TRACE_FLAG=""
-    PROGRAM_MAP_LINE=""
+    MAP_FILE=""
     SKIER_COUNT=0
     SKIER_POINTS=()
-    OUTPUT_FILE="$OUTPUT_FOLDER/"
-
+    
     # Read the task file
     while IFS= read -r line || [[ -n "$line" ]]; do
-        if [[ -z "$PROGRAM_MAP_LINE" ]]; then
-            if [[ "$line" == "TRACE" ]]; then
-                TRACE_FLAG="-t"
-            elif [[ "$line" == "NO TRACE" ]]; then
-                TRACE_FLAG=""
-            else
-                PROGRAM_MAP_LINE="$line"
-            fi
+        if [[ "$line" == "TRACE" ]]; then
+            TRACE_FLAG="-t"
+        elif [[ "$line" == "NO TRACE" ]]; then
+            TRACE_FLAG=""
+        elif [[ -z "$MAP_FILE" ]]; then
+            MAP_FILE="$line"
         elif [[ "$SKIER_COUNT" -eq 0 ]]; then
             SKIER_COUNT="$line"
         else
             SKIER_POINTS+=("$line")
         fi
-    done < "$NEWFILE"
+    done < "$TASK_FILE"
 
-    # Extract program name and map file from the combined line
-    PROGRAM_NAME=$(echo $PROGRAM_MAP_LINE | awk '{print $1}')
-    MAP_FILE=$(echo $PROGRAM_MAP_LINE | awk '{print $2}')
+    # Construct the output file name
+    OUTPUT_FILE="$OUTPUT_FOLDER/"
 
     # Construct the command to run the skier dispatcher
-    CMD="$PROGRAM_NAME $TRACE_FLAG $MAP_FILE"
+    CMD="Compiled/prog05v3 $TRACE_FLAG $MAP_FILE"
     for point in "${SKIER_POINTS[@]}"; do
         CMD="$CMD $point"
     done
@@ -73,8 +65,6 @@ process_task_file() {
     # Run the skier dispatcher command in the background
     eval $CMD &
 }
-
-
 
 # Start the polling loop
 while true; do
@@ -88,6 +78,8 @@ while true; do
             if grep -q "^END$" "$FILE"; then
                 echo "Terminating all skier processes."
                 # Implement process termination logic here
+                # This is a placeholder; actual implementation will depend on how you're managing processes
+                pkill -P $$ # This will kill all child processes of this script's process
                 exit 0
             else
                 process_task_file "$FILE"
