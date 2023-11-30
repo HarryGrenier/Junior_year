@@ -318,51 +318,22 @@ void processImageRegion(unsigned int startRow, unsigned int endRow, unsigned int
     }
 }
 
-void initializeApplication(void)
-{
+void initializeApplication(void) {
 
-	//	I preallocate the max number of messages at the max message
-	//	length.  This goes against some of my own principles about
-	//	good programming practice, but I do that so that you can
-	//	change the number of messages and their content "on the fly,"
-	//	at any point during the execution of your program, whithout
-	//	having to worry about allocation and resizing.
-	message = (char**) malloc(MAX_NUM_MESSAGES*sizeof(char*));
-	for (int k=0; k<MAX_NUM_MESSAGES; k++)
-		message[k] = (char*) malloc((MAX_LENGTH_MESSAGE+1)*sizeof(char));
-	
-	//---------------------------------------------------------------
-	//	All the code below to be replaced/removed
-	//	I load an image to have something to look at
-	//---------------------------------------------------------------
-	//	Yes, I am using the C random generator, although I usually rant on and on
-	//	that the C/C++ default random generator is junk and that the people who use it
-	//	are at best fools.  Here I am not using it to produce "serious" data (as in a
-	//	simulation), only some color, in meant-to-be-thrown-away code
-	
-	const int numThreads = numLiveFocusingThreads;
-    int rowsPerThread = imageOut->height / numThreads;
-
-    std::vector<std::thread> threads;
-    for (int i = 0; i < numThreads; ++i) {
-		int startRow = i * rowsPerThread;
-		int endRow = (i == numThreads - 1) ? imageOut->height : (i + 1) * rowsPerThread;
-		threads.emplace_back(processImageRegion, startRow, endRow, 0, imageOut->width, imageStack, outputImage);
-}
-
-    for (auto &thread : threads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
+    // Allocate memory for messages
+    message = (char**) malloc(MAX_NUM_MESSAGES * sizeof(char*));
+    for (int k = 0; k < MAX_NUM_MESSAGES; k++) {
+        message[k] = (char*) malloc((MAX_LENGTH_MESSAGE + 1) * sizeof(char));
     }
 
-	//	right now I read *one* hardcoded image, into my output
-	//	image. This is definitely something that you will want to
-	//	change.
-
-	// Example file paths
-	const std::string File_Path= "../Handout-Data/Series01/";
-    std::vector<std::string> filePaths = {File_Path+"_MG_6291.tga", File_Path+"_MG_6293.tga", File_Path+"_MG_6294.tga",File_Path+"_MG_6295.tga",File_Path+"_MG_6296.tga",File_Path+"_MG_6297.tga",File_Path+"_MG_6298.tga",File_Path+"_MG_6299.tga",File_Path+"_MG_6300.tga",File_Path+"_MG_6301.tga",File_Path+"_MG_6302.tga"};
+    // Define the file paths for the images
+    const std::string File_Path = "../Handout-Data/Series01/";
+    std::vector<std::string> filePaths = {
+        File_Path+"_MG_6291.tga", File_Path+"_MG_6293.tga", File_Path+"_MG_6294.tga",
+        File_Path+"_MG_6295.tga", File_Path+"_MG_6296.tga", File_Path+"_MG_6297.tga",
+        File_Path+"_MG_6298.tga", File_Path+"_MG_6299.tga", File_Path+"_MG_6300.tga",
+        File_Path+"_MG_6301.tga", File_Path+"_MG_6302.tga"
+    };
 
     // Load the image stack
     std::vector<RasterImage*> imageStack = loadImageStack(filePaths);
@@ -370,10 +341,30 @@ void initializeApplication(void)
     // Prepare the output image based on the first image in the stack
     RasterImage* outputImage = createOutputImage(imageStack[0]);
 
-	
-	
-	launchTime = time(NULL);
+    // Initialize threads and process image regions
+    const int numThreads = numLiveFocusingThreads;
+    int rowsPerThread = outputImage->height / numThreads;
+    std::vector<std::thread> threads;
+
+    for (int i = 0; i < numThreads; ++i) {
+        unsigned int startRow = i * rowsPerThread;
+        unsigned int endRow = (i == numThreads - 1) ? outputImage->height : (i + 1) * rowsPerThread;
+        threads.emplace_back(processImageRegion, startRow, endRow, 0, outputImage->width, imageStack, outputImage);
+    }
+
+    // Wait for threads to complete
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    launchTime = time(NULL);
+
+    // Clean up: Free the image stack (if not needed anymore)
+    for (RasterImage* img : imageStack) {
+        delete img;
+    }
+
+    // Note: Be sure to free 'outputImage' when it is no longer needed
 }
-
-
-
