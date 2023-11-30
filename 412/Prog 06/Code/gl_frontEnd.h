@@ -25,7 +25,7 @@
 		#include <GL/freeglut.h>
 		#include <GL/gl.h>
 	#endif
-#elif defined(linux)
+#elif defined(__linux__)
 	#include <GL/glut.h>
 #else
 	#error unknown OS
