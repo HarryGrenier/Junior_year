@@ -279,16 +279,15 @@ void processImageRegion(int startRow, int endRow, int startCol, int endCol,
                 float maxPixelValue = 0.0f;
 
                 for (int wy = -halfWindow; wy <= halfWindow; ++wy) {
-                    for (int wx = -halfWindow; wx <= halfWindow; ++wx) {
-                        int currentRow = row + wy;
-                        int currentCol = col + wx;
+					for (int wx = -halfWindow; wx <= halfWindow; ++wx) {
+						unsigned int currentRow = static_cast<unsigned int>(row + wy);
+						unsigned int currentCol = static_cast<unsigned int>(col + wx);
 
-                        if (currentRow >= 0 && currentRow < outputImage->height &&
-                            currentCol >= 0 && currentCol < outputImage->width) {
-                            unsigned char* pixel = imageStack[imgIndex]->raster +
-                                                   currentRow * outputImage->bytesPerRow +
-                                                   currentCol * outputImage->bytesPerPixel;
-
+						if (currentRow >= 0 && currentRow < outputImage->height &&
+							currentCol >= 0 && currentCol < outputImage->width) {
+							unsigned char* pixel = static_cast<unsigned char*>(imageStack[imgIndex]->raster) +
+												currentRow * outputImage->bytesPerRow +
+												currentCol * outputImage->bytesPerPixel;
                             float grayValue = convertToGrayscale(pixel[0], pixel[1], pixel[2]); // Assuming RGB format
                             minPixelValue = std::min(minPixelValue, grayValue);
                             maxPixelValue = std::max(maxPixelValue, grayValue);
@@ -345,10 +344,10 @@ void initializeApplication(void)
 
     std::vector<std::thread> threads;
     for (int i = 0; i < numThreads; ++i) {
-        int startRow = i * rowsPerThread;
-        int endRow = (i == numThreads - 1) ? imageOut->height : (i + 1) * rowsPerThread;
-        threads.emplace_back(processImageRegion, startRow, endRow, 0, imageOut->width);
-    }
+		int startRow = i * rowsPerThread;
+		int endRow = (i == numThreads - 1) ? imageOut->height : (i + 1) * rowsPerThread;
+		threads.emplace_back(processImageRegion, startRow, endRow, 0, imageOut->width, imageStack, outputImage);
+}
 
     for (auto &thread : threads) {
         if (thread.joinable()) {
