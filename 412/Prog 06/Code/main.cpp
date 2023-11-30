@@ -264,13 +264,13 @@ float convertToGrayscale(unsigned char r, unsigned char g, unsigned char b) {
 }
 
 
-void processImageRegion(int startRow, int endRow, int startCol, int endCol, 
+void processImageRegion(unsigned int startRow, unsigned int endRow, unsigned int startCol, unsigned int endCol, 
                         const std::vector<RasterImage*>& imageStack, RasterImage* outputImage) {
     const int windowSize = 3;  // Example window size
     const int halfWindow = windowSize / 2;
 
-    for (int row = startRow; row < endRow; ++row) {
-        for (int col = startCol; col < endCol; ++col) {
+    for (unsigned int row = startRow; row < endRow; ++row) {
+        for (unsigned int col = startCol; col < endCol; ++col) {
             int bestFocusIndex = 0;
             float bestFocusMeasure = -1.0f;
 
@@ -279,15 +279,16 @@ void processImageRegion(int startRow, int endRow, int startCol, int endCol,
                 float maxPixelValue = 0.0f;
 
                 for (int wy = -halfWindow; wy <= halfWindow; ++wy) {
-					for (int wx = -halfWindow; wx <= halfWindow; ++wx) {
-						unsigned int currentRow = static_cast<unsigned int>(row + wy);
-						unsigned int currentCol = static_cast<unsigned int>(col + wx);
+                    for (int wx = -halfWindow; wx <= halfWindow; ++wx) {
+                        int currentRow = static_cast<int>(row) + wy;
+                        int currentCol = static_cast<int>(col) + wx;
 
-						if (currentRow >= 0 && currentRow < outputImage->height &&
-							currentCol >= 0 && currentCol < outputImage->width) {
-							unsigned char* pixel = static_cast<unsigned char*>(imageStack[imgIndex]->raster) +
-												currentRow * outputImage->bytesPerRow +
-												currentCol * outputImage->bytesPerPixel;
+                        if (currentRow >= 0 && static_cast<unsigned int>(currentRow) < outputImage->height &&
+                            currentCol >= 0 && static_cast<unsigned int>(currentCol) < outputImage->width) {
+                            unsigned char* pixel = static_cast<unsigned char*>(imageStack[imgIndex]->raster) +
+                                                   currentRow * outputImage->bytesPerRow +
+                                                   currentCol * outputImage->bytesPerPixel;
+
                             float grayValue = convertToGrayscale(pixel[0], pixel[1], pixel[2]); // Assuming RGB format
                             minPixelValue = std::min(minPixelValue, grayValue);
                             maxPixelValue = std::max(maxPixelValue, grayValue);
@@ -303,14 +304,14 @@ void processImageRegion(int startRow, int endRow, int startCol, int endCol,
             }
 
             // Copy pixel data from the most in-focus image to the output image
-            unsigned char* sourcePixel = imageStack[bestFocusIndex]->raster +
+            unsigned char* sourcePixel = static_cast<unsigned char*>(imageStack[bestFocusIndex]->raster) +
                                          row * outputImage->bytesPerRow +
                                          col * outputImage->bytesPerPixel;
-            unsigned char* destPixel = outputImage->raster +
+            unsigned char* destPixel = static_cast<unsigned char*>(outputImage->raster) +
                                        row * outputImage->bytesPerRow +
                                        col * outputImage->bytesPerPixel;
 
-            for (int i = 0; i < outputImage->bytesPerPixel; ++i) {
+            for (unsigned int i = 0; i < outputImage->bytesPerPixel; ++i) {
                 destPixel[i] = sourcePixel[i];
             }
         }
