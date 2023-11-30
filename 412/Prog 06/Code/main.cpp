@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <random>
+#include <thread>
 //
 #include <cstdio>
 #include <cstdlib>
@@ -35,7 +36,7 @@ extern int	gMainWindow;
 
 //	Don't rename any of these variables/constants
 //--------------------------------------------------
-unsigned int numLiveFocusingThreads = 0;		//	the number of live focusing threads
+unsigned int numLiveFocusingThreads = 4;		//	the number of live focusing threads
 
 //	An array of C-string where you can store things you want displayed in the spate pane
 //	that you want the state pane to display (for debugging purposes?)
@@ -242,6 +243,81 @@ int main(int argc, char** argv)
 //	(right now it is initialized simply by reading an image into it.
 //==================================================================================
 
+RasterImage* loadSingleImage(const std::string& filePath) {
+   	return readTGA(filePath.c_str());
+}
+
+std::vector<RasterImage*> loadImageStack(const std::vector<std::string>& filePaths) {
+	std::vector<RasterImage*> imageStack;
+	for (const std::string& path : filePaths) {
+		imageStack.push_back(loadSingleImage(path));
+	}
+	return imageStack;
+}
+
+RasterImage* createOutputImage(const RasterImage* referenceImage) {
+   	return new RasterImage(referenceImage->width, referenceImage->height, referenceImage->type);
+}
+
+float convertToGrayscale(unsigned char r, unsigned char g, unsigned char b) {
+    return 0.21f * r + 0.72f * g + 0.07f * b;
+}
+
+
+void processImageRegion(int startRow, int endRow, int startCol, int endCol, 
+                        const std::vector<RasterImage*>& imageStack, RasterImage* outputImage) {
+    const int windowSize = 3;  // Example window size
+    const int halfWindow = windowSize / 2;
+
+    for (int row = startRow; row < endRow; ++row) {
+        for (int col = startCol; col < endCol; ++col) {
+            int bestFocusIndex = 0;
+            float bestFocusMeasure = -1.0f;
+
+            for (size_t imgIndex = 0; imgIndex < imageStack.size(); ++imgIndex) {
+                float minPixelValue = 255.0f;
+                float maxPixelValue = 0.0f;
+
+                for (int wy = -halfWindow; wy <= halfWindow; ++wy) {
+                    for (int wx = -halfWindow; wx <= halfWindow; ++wx) {
+                        int currentRow = row + wy;
+                        int currentCol = col + wx;
+
+                        if (currentRow >= 0 && currentRow < outputImage->height &&
+                            currentCol >= 0 && currentCol < outputImage->width) {
+                            unsigned char* pixel = imageStack[imgIndex]->raster +
+                                                   currentRow * outputImage->bytesPerRow +
+                                                   currentCol * outputImage->bytesPerPixel;
+
+                            float grayValue = convertToGrayscale(pixel[0], pixel[1], pixel[2]); // Assuming RGB format
+                            minPixelValue = std::min(minPixelValue, grayValue);
+                            maxPixelValue = std::max(maxPixelValue, grayValue);
+                        }
+                    }
+                }
+
+                float focusMeasure = maxPixelValue - minPixelValue;
+                if (focusMeasure > bestFocusMeasure) {
+                    bestFocusMeasure = focusMeasure;
+                    bestFocusIndex = imgIndex;
+                }
+            }
+
+            // Copy pixel data from the most in-focus image to the output image
+            unsigned char* sourcePixel = imageStack[bestFocusIndex]->raster +
+                                         row * outputImage->bytesPerRow +
+                                         col * outputImage->bytesPerPixel;
+            unsigned char* destPixel = outputImage->raster +
+                                       row * outputImage->bytesPerRow +
+                                       col * outputImage->bytesPerPixel;
+
+            for (int i = 0; i < outputImage->bytesPerPixel; ++i) {
+                destPixel[i] = sourcePixel[i];
+            }
+        }
+    }
+}
+
 void initializeApplication(void)
 {
 
@@ -264,18 +340,37 @@ void initializeApplication(void)
 	//	are at best fools.  Here I am not using it to produce "serious" data (as in a
 	//	simulation), only some color, in meant-to-be-thrown-away code
 	
-	//	seed the pseudo-random generator
-	srand((unsigned int) time(NULL));
+	const int numThreads = numLiveFocusingThreads;
+    int rowsPerThread = imageOut->height / numThreads;
+
+    std::vector<std::thread> threads;
+    for (int i = 0; i < numThreads; ++i) {
+        int startRow = i * rowsPerThread;
+        int endRow = (i == numThreads - 1) ? imageOut->height : (i + 1) * rowsPerThread;
+        threads.emplace_back(processImageRegion, startRow, endRow, 0, imageOut->width);
+    }
+
+    for (auto &thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
 
 	//	right now I read *one* hardcoded image, into my output
 	//	image. This is definitely something that you will want to
 	//	change.
-	const string hardCodedInput = "../TempData/_MG_6386.tga";
-	imageOut = readTGA(hardCodedInput.c_str());
+
+	// Example file paths
+	const std::string File_Path= "../Handout-Data/Series01/";
+    std::vector<std::string> filePaths = {File_Path+"_MG_6291.tga", File_Path+"_MG_6293.tga", File_Path+"_MG_6294.tga",File_Path+"_MG_6295.tga",File_Path+"_MG_6296.tga",File_Path+"_MG_6297.tga",File_Path+"_MG_6298.tga",File_Path+"_MG_6299.tga",File_Path+"_MG_6300.tga",File_Path+"_MG_6301.tga",File_Path+"_MG_6302.tga"};
+
+    // Load the image stack
+    std::vector<RasterImage*> imageStack = loadImageStack(filePaths);
+
+    // Prepare the output image based on the first image in the stack
+    RasterImage* outputImage = createOutputImage(imageStack[0]);
+
 	
-	//	Having read my image, I can now initialize my random distributions
-	rowDist = uniform_int_distribution<unsigned int>(0, imageOut->height-1);
-	colDist = uniform_int_distribution<unsigned int>(0, imageOut->width-1);
 	
 	launchTime = time(NULL);
 }
